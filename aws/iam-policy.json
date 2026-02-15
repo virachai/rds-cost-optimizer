@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "RDSStartStopAPILeastPrivilege",
+      "Sid": "RDSManageAccess",
       "Effect": "Allow",
       "Action": [
         "rds:StartDBInstance",
@@ -10,6 +10,12 @@
         "rds:DescribeDBInstances"
       ],
       "Resource": "arn:aws:rds:ap-southeast-1:YOUR_ACCOUNT_ID:db:YOUR_INSTANCE_ID"
+    },
+    {
+      "Sid": "CloudWatchMetricAccess",
+      "Effect": "Allow",
+      "Action": ["cloudwatch:GetMetricData", "cloudwatch:PutMetricAlarm"],
+      "Resource": "*"
     }
   ]
 }

@@ -1,47 +1,57 @@
-# คู่มือการติดตั้งและใช้งาน (GitHub Actions Step-by-Step)
+# คู่มือการใช้งานระบบประหยัดไฟ RDS (Idle-Aware Strategy)
 
-คู่มือนี้จะสอนวิธีการติดตั้งระบบ **RDS Auto Start-Stop** โดยใช้ **GitHub Actions** ซึ่งเป็นวิธีที่ง่ายที่สุด ไม่ต้องใช้ Terraform หรือ Lambda
-
----
-
-## ขั้นตอนที่ 1: เตรียมความพร้อม (Prerequisites)
-
-1.  **สิทธิ์ AWS**: สร้าง IAM User และขอ **Access Key ID** และ **Secret Access Key**
-2.  **นโยบายความปลอดภัยสูงสุด (Least Privilege)**:
-    - ใช้ไฟล์ [aws/iam-policy.json](aws/iam-policy.json) เป็นต้นแบบ
-    - สิทธิ์นี้จะอนุญาตให้ **Start/Stop** เฉพาะเครื่องที่กำหนดเท่านั้น (ไม่ได้ให้สิทธิ์จัดการทั้งบัญชี)
-    - อย่าลืมเปลี่ยน `YOUR_ACCOUNT_ID` และ `YOUR_INSTANCE_ID` เป็นค่าของคุณจริงๆ
-3.  **มี RDS Instance**: ตรวจสอบว่ามีฐานข้อมูล `db.t4g.micro` รันอยู่ใน `ap-southeast-1`
+คู่มือนี้จะสอนวิธีการติดตั้งระบบ **RDS Auto Start-Stop** ที่รองรับทั้งการปิดเมื่อไม่มีการใช้งาน (Idle) และ **การเปิดอัตโนมัติเมื่อมีคนพยายามเชื่อมต่อ (Wake-on-Traffic)**
 
 ---
 
-## ขั้นตอนที่ 2: ตั้งค่า GitHub Secrets
+## ฟีเจอร์หลัก (Key Features)
 
-1.  ไปที่ Repository ของคุณใน GitHub
-2.  เลือก **Settings** > **Secrets and variables** > **Actions**
-3.  กด **New repository secret** และเพิ่มค่าดังนี้:
-    - `AWS_ACCESS_KEY_ID`: (จากข้อ 1)
-    - `AWS_SECRET_ACCESS_KEY`: (จากข้อ 1)
-    - `RDS_INSTANCE_ID`: ชื่อ DB Instance ของคุณ (เช่น `my-dev-db`)
+- **Auto-Stop**: ปิดเองเมื่อ Idle ครบ 60 นาที (เช็คทุกชั่วโมง)
+- **Wake-on-Traffic**: เปิดเองทันทีที่มีคนพยายาม Connect (ใช้ VPC Flow Logs)
+- **Manual Control**: เปิดเองผ่าน Script เมื่อต้องการ
 
----
+## 1. วิธีการปิดอัตโนมัติ (Auto-Stop via Lambda)
 
-## ขั้นตอนที่ 3: ตรวจสอบการทำงาน
+เราใช้ **AWS Lambda** คอยตรวจสอบว่ามีคนต่อ Database หรือไม่ผ่าน CloudWatch Metrics
 
-ระบบจะทำงานอัตโนมัติตามกำหนดเวลา (09:00น. และ 18:00น. วันจันทร์-ศุกร์) แต่คุณสามารถสั่งรันเองได้ทันที:
-
-1.  ไปที่แถบ **Actions** ใน GitHub
-2.  เลือก Workflow ชื่อ **RDS Auto Start-Stop**
-3.  กด **Run workflow**
-4.  เลือกคำสั่งที่ต้องการ (**START** หรือ **STOP**) แล้วกด **Run workflow**
+- **Logic**: ถ้าไม่มีการเชื่อมต่อ (0 Connections) ติดต่อกัน 60 นาที ระบบจะสั่ง Stop ทันที
+- **Schedule (Cron)**: ตั้งค่า EventBridge ให้รันทุกชั่วโมง ตลอด 24 ชม. ทุกวัน:
+  ```text
+  cron(0 * * * ? *)
+  ```
 
 ---
 
-## สรุปค่าใช้จ่ายที่ลดได้ (Cost Optimization)
+## 2. วิธีการเปิดใช้งาน (Manual Wake-up)
 
-ด้วยระบบนี้ เครื่องจะรันเพียง 9 ชั่วโมงต่อวันในวันธรรมดา (45 ชม./สัปดาห์) แทนที่จะรัน 168 ชม.
+เนื่องจาก RDS ไม่รองรับการเปิดเองเมื่อมี Traffic เข้ามา คุณต้องเรียกคำสั่ง "ปลุก" (Wake-up) ก่อนเริ่มงาน:
 
-- **ค่าใช้จ่ายเดิม**: ~$18.00 ต่อเดือน
-- **ค่าใช้จ่ายใหม่**: ~$5.85 ต่อเดือน
-- **ประหยัดเงินได้**: **~67%** หรือมากกว่า 400 บาทต่อเดือนต่อหนึ่งฐานข้อมูล!
-- **ค่าบริการ GitHub Actions**: **ฟรี (Free Tier)** สำหรับโปรเจกต์ทั่วไป
+### ผ่าน Command Line (CLI):
+
+```bash
+# ใช้ Script ที่เตรียมไว้ให้
+./scripts/wake-up.sh [ชื่อ-db-ของคุณ]
+```
+
+### ผ่าน AWS CLI โดยตรง:
+
+```bash
+aws rds start-db-instance --db-instance-identifier YOUR_DB_ID --region ap-southeast-1
+```
+
+---
+
+## 3. นโยบายความปลอดภัย (IAM Policy)
+
+ใช้สิทธิ์ให้น้อยที่สุด (Least Privilege) ตามไฟล์ [aws/iam-policy.json](aws/iam-policy.json) ซึ่งจะเข้าถึงได้เฉพาะ:
+
+1. การสั่ง Start/Stop/Describe RDS
+2. การอ่านค่า Metric จาก CloudWatch
+
+---
+
+## สรุปข้อดี
+
+- ประหยัดค่า Compute ได้สูงสุดถึง **70%**
+- ไม่ต้องกังวลเรื่องลืมปิดตอนเลิกงาน
+- DB Endpoint ยังคงเดิม ไม่เปลี่ยนแปลง

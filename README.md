@@ -1,43 +1,47 @@
-# RDS Cost Optimizer (rds-auto-start-stop)
+# RDS Cost Optimizer (Idle-Aware Strategy)
 
-A zero-infrastructure AWS automation system to automatically start and stop Amazon RDS `db.t4g.micro` instances in `ap-southeast-1` (Singapore) using **GitHub Actions**.
+A serverless AWS automation system to reduce Amazon RDS `db.t4g.micro` compute costs by stopping instances when no connections are detected.
 
-## Features
+## Strategy: Hybrid Optimization
 
-- **Zero Infrastructure:** No Lambda or Terraform required. Runs directly from GitHub.
-- **Automated Scheduling:** Starts at 09:00 SGT and stops at 18:00 SGT (Mon–Fri).
-- **Manual Control:** Trigger start/stop anytime via GitHub Actions `workflow_dispatch`.
-- **Cost Efficiency:** Reduces compute costs by ~67%.
-- **Secure:** Uses GitHub Secrets to store AWS credentials and Instance IDs.
+- **Auto-Stop (Idle Detection):** A Lambda function checks CloudWatch metrics every hour. If `DatabaseConnections` is 0 for 60 minutes, the instance is stopped.
+- **Auto-Start (Wake-on-Traffic):** Automatically starts the database when a connection attempt is detected via VPC Flow Logs and CloudWatch Alarms.
+- **Manual Control:** Use `scripts/wake-up.sh` for explicit startup.
 
-## Architecture
+## Components
 
-The system uses a simple, modern approach:
+1. **Lambda Function (`src/idle_detection.py`)**: Checks CloudWatch metrics and stops the DB.
+2. **Lambda Function (`src/wake_on_traffic.py`)**: Starts the DB upon connection attempts.
+3. **IAM Policy (`aws/iam-policy.json`)**: Least-privilege permissions for RDS and CloudWatch.
+4. **Setup Runbook (`aws/RUNBOOK.md`)**: [Detailed step-by-step console guide](aws/RUNBOOK.md).
+5. **Wake-up Script (`scripts/wake-up.sh`)**: Manual trigger to start the DB.
 
-- **GitHub Actions:** Acts as both the scheduler and the execution engine.
-- **AWS CLI:** Commands are issued directly to the AWS API.
-- **GitHub Secrets:** Securely stores sensitive configuration.
+## EventBridge Cron Expression
 
-## Cost Estimation (Singapore)
-
-| Instance Type  | Usage Pattern       | Monthly Compute Cost | Savings  |
-| :------------- | :------------------ | :------------------- | :------- |
-| `db.t4g.micro` | 24/7 (Always On)    | ~$18.00              | -        |
-| `db.t4g.micro` | 09:00-18:00 Mon-Fri | ~$5.85               | **~67%** |
-
-_Note: Storage/EBS costs are additional and persist while the instance is stopped._
-
-## Project Structure
+To run the check every hour, 24/7:
 
 ```text
-├── .github/workflows/  # GitHub Action logic
-│   └── rds-scheduler.yml
-├── docs/               # RFC and architecture
-├── aws/                # SSM Runbooks
-├── HOW_TO.md           # Step-by-step guide (Thai)
-└── DEPLOYMENT.md       # Step-by-step guide (English)
+cron(0 * * * ? *)
 ```
 
-## License
+## Manual Wake-up Command
 
-MIT
+If you have the AWS CLI configured, run:
+
+```bash
+aws rds start-db-instance --db-instance-identifier YOUR_DB_ID --region ap-southeast-1
+```
+
+Or use the provided script:
+
+```bash
+./scripts/wake-up.sh YOUR_DB_ID
+```
+
+## Cost Comparison (Singapore)
+
+| Pattern                     | Monthly Compute (Approx) |
+| :-------------------------- | :----------------------- |
+| **Always On (24/7)**        | ~$18.00                  |
+| **Idle-Aware (~30% usage)** | **~$5.40**               |
+| **Savings**                 | **~70%**                 |
