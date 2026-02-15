@@ -1,0 +1,47 @@
+{
+  "description": "RDS Auto Start-Stop Automation Runbook",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "DBInstanceIdentifier": {
+      "type": "String",
+      "description": "(Required) The identifier of the RDS instance."
+    },
+    "Action": {
+      "type": "String",
+      "description": "(Required) The action to perform (START or STOP).",
+      "allowedValues": ["START", "STOP"]
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "StartRdsInstance",
+      "action": "aws:executeAwsApi",
+      "precondition": {
+        "StringEquals": ["{{ Action }}", "START"]
+      },
+      "inputs": {
+        "Service": "rds",
+        "Api": "StartDBInstance",
+        "DBInstanceIdentifier": "{{ DBInstanceIdentifier }}"
+      }
+    },
+    {
+      "name": "StopRdsInstance",
+      "action": "aws:executeAwsApi",
+      "precondition": {
+        "StringEquals": ["{{ Action }}", "STOP"]
+      },
+      "inputs": {
+        "Service": "rds",
+        "Api": "StopDBInstance",
+        "DBInstanceIdentifier": "{{ DBInstanceIdentifier }}"
+      }
+    }
+  ]
+}
