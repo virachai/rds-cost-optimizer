@@ -13,7 +13,9 @@ A serverless AWS automation system to reduce Amazon RDS `db.t4g.micro` compute c
 1. **Lambda Function (`src/idle_detection.py`)**: Checks CloudWatch metrics and stops the DB.
 2. **Lambda Function (`src/wake_on_traffic.py`)**: Starts the DB upon connection attempts.
 3. **IAM Policy (`aws/iam-policy.json`)**: Least-privilege permissions for RDS and CloudWatch.
-4. **Setup Runbook (`aws/RUNBOOK.md`)**: [Detailed step-by-step console guide](aws/RUNBOOK.md).
+4. **Setup Runbooks:**
+   - [AWS Console Guide](aws/RUNBOOK.md)
+   - [AWS CLI Guide](aws/CLI_RUNBOOK.md)
 5. **Wake-up Script (`scripts/wake-up.sh`)**: Manual trigger to start the DB.
 
 ## EventBridge Cron Expression
