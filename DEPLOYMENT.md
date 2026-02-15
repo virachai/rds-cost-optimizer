@@ -1,63 +1,55 @@
-# Deployment Guide
+# Deployment Guide (GitHub Actions)
 
-Follow these steps to deploy the RDS Auto Start-Stop scheduler.
+Follow these steps to set up the RDS Auto Start-Stop scheduler using GitHub Actions.
 
 ## Prerequisites
 
-1. **AWS CLI** configured with appropriate permissions.
-2. **Terraform** (>= 1.0) installed.
-3. An existing **RDS instance** (`db.t4g.micro`) in `ap-southeast-1`.
+1. An existing **RDS instance** (`db.t4g.micro`) in `ap-southeast-1`.
+2. An **IAM User** with the following permissions:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "rds:StartDBInstance",
+           "rds:StopDBInstance",
+           "rds:DescribeDBInstances"
+         ],
+         "Resource": "arn:aws:rds:ap-southeast-1:ACCOUNT_ID:db:YOUR_INSTANCE_ID"
+       }
+     ]
+   }
+   ```
 
 ## Deployment Steps
 
-1. **Clone the repository:**
+### 1. Configure GitHub Secrets
 
-   ```bash
-   git clone <repo-url>
-   cd rds-cost-optimizer/terraform
-   ```
+Navigate to your GitHub Repository > **Settings** > **Secrets and variables** > **Actions**. Add the following **Repository secrets**:
 
-2. **Initialize Terraform:**
+| Secret Name             | Description                                              |
+| :---------------------- | :------------------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`     | Your AWS IAM Access Key ID.                              |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS IAM Secret Access Key.                          |
+| `RDS_INSTANCE_ID`       | The identifier of your RDS instance (e.g., `my-dev-db`). |
 
-   ```bash
-   terraform init
-   ```
+### 2. Verify the Workflow
 
-3. **Configure Variables:**
-   Create a `terraform.tfvars` file or prepare to provide variables via CLI:
+The workflow is automatically defined in `.github/workflows/rds-scheduler.yml`. Once you push this code to GitHub, it will be active.
 
-   ```hcl
-   rds_instance_id   = "your-db-instance-id"
-   slack_webhook_url = "https://hooks.slack.com/services/..." # Optional
-   ```
+## Manual Execution
 
-4. **Plan Deployment:**
+1. Navigate to the **Actions** tab in your GitHub repository.
+2. Select the **RDS Auto Start-Stop** workflow.
+3. Click **Run workflow**.
+4. Choose the action (`START` or `STOP`) and click **Run workflow**.
 
-   ```bash
-   terraform plan -var="rds_instance_id=your-db-instance-id"
-   ```
+## Automated Schedule
 
-5. **Apply Infrastructure:**
-   ```bash
-   terraform apply -var="rds_instance_id=your-db-instance-id"
-   ```
+The workflow is set to run automatically at:
 
-## Post-Deployment Verification
-
-1. **Check CloudWatch Logs:**
-   Navigate to the `/aws/lambda/rds-auto-scheduler` log group in the AWS Console.
-2. **Manual Test:**
-   You can manually trigger the Lambda function with the following test event to verify logic:
-   ```json
-   { "action": "STOP" }
-   ```
-3. **EventBridge Rules:**
-   Verify that two rules (`rds-start-rule` and `rds-stop-rule`) are enabled and targeting the Lambda function.
-
-## Manual Override
-
-To temporarily disable the automated schedule:
-
-1. Navigate to the Lambda configuration in the AWS Console.
-2. Set the environment variable `MANUAL_OVERRIDE` to `true`.
-3. Set it back to `false` (default) to resume scheduling.
+- **09:00 SGT (01:00 UTC)**: START
+- **18:00 SGT (10:00 UTC)**: STOP
+- Days: Monday to Friday.

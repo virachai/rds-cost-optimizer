@@ -1,77 +1,52 @@
-# คู่มือการติดตั้งและใช้งาน (Step-by-Step Guide)
+# คู่มือการติดตั้งและใช้งาน (GitHub Actions Step-by-Step)
 
-คู่มือนี้จะสอนวิธีการติดตั้งระบบ **RDS Auto Start-Stop** ตั้งแต่เริ่มต้นจนใช้งานได้จริง เพื่อลดค่าใช้จ่าย AWS สำหรับเครื่อง Dev/Test ในภูมิภาค Singapore (`ap-southeast-1`)
+คู่มือนี้จะสอนวิธีการติดตั้งระบบ **RDS Auto Start-Stop** โดยใช้ **GitHub Actions** ซึ่งเป็นวิธีที่ง่ายที่สุด ไม่ต้องใช้ Terraform หรือ Lambda
 
 ---
 
 ## ขั้นตอนที่ 1: เตรียมความพร้อม (Prerequisites)
 
-1.  **สมัครบัญชี AWS**: และมีสิทธิ์ระดับ Administrator
-2.  **ติดตั้งเครื่องมือ**:
-    - **AWS CLI**: [วิธีติดตั้ง](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) และรัน `aws configure`
-    - **Terraform**: [วิธีติดตั้ง](https://developer.hashicorp.com/terraform/downloads)
-3.  **มี RDS Instance**: ตรวจสอบว่ามีฐานข้อมูล `db.t4g.micro` รันอยู่ใน `ap-southeast-1` และจดจำ **DB Instance Identifier** (เช่น `my-dev-db`)
-
----
-
-## ขั้นตอนที่ 2: ดาวน์โหลดโปรเจกต์ (Cloning the Project)
-
-เปิด Terminal หรือ PowerShell แล้วรันคำสั่ง:
-
-```bash
-git clone <url-of-this-repository>
-cd rds-cost-optimizer
-```
-
----
-
-## ขั้นตอนที่ 3: ติดตั้ง Infrastructure ด้วย Terraform
-
-1.  เข้าไปที่โฟลเดอร์ `terraform`:
-    ```bash
-    cd terraform
+1.  **สิทธิ์ AWS**: สร้าง IAM User และขอ **Access Key ID** และ **Secret Access Key**
+2.  **นโยบาย (IAM Policy)**: ให้สิทธิ์ User ดังนี้:
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "rds:StartDBInstance",
+            "rds:StopDBInstance",
+            "rds:DescribeDBInstances"
+          ],
+          "Resource": "arn:aws:rds:ap-southeast-1:เลขบัญชี:db:ชื่อ-db-ของคุณ"
+        }
+      ]
+    }
     ```
-2.  สร้างไฟล์ชื่อ `terraform.tfvars` เพื่อกำหนดค่าเฉพาะของคุณ:
-    ```hcl
-    rds_instance_id = "ชื่อ-db-ของคุณ"
-    # slack_webhook_url = "https://hooks.slack.com/services/..." (ใส่หรือไม่ก็ได้)
-    ```
-3.  รันคำสั่งติดตั้งตามลำดับ:
-    ```bash
-    terraform init    # เตรียมความพร้อม
-    terraform plan    # ตรวจสอบความถูกต้อง
-    terraform apply   # ติดตั้งจริง (พิมพ์ 'yes' เมื่อระบบถาม)
-    ```
+3.  **มี RDS Instance**: ตรวจสอบว่ามีฐานข้อมูล `db.t4g.micro` รันอยู่ใน `ap-southeast-1`
 
 ---
 
-## ขั้นตอนที่ 4: ตรวจสอบผลการติดตั้ง (Verification)
+## ขั้นตอนที่ 2: ตั้งค่า GitHub Secrets
 
-1.  ไปที่ **AWS Console** > **Lambda**
-2.  คุณจะเห็น Function ชื่อ `rds-auto-scheduler`
-3.  ไปที่ **EventBridge** > **Rules**
-4.  คุณจะเห็น 2 กฎ (Rules) คือ `rds-start-rule` (รันตอน 09:00น.) และ `rds-stop-rule` (รันตอน 18:00น.)
-
----
-
-## ขั้นตอนที่ 5: การใช้งาน SSM Runbook (ทางเลือก)
-
-หากคุณต้องการสั่ง Open/Close ด้วยตนเองผ่าน UI ที่สวยงามของ AWS:
-
-1.  ที่ **AWS Console** ไปที่ **Systems Manager** > **Shared Resources** > **Documents**
-2.  เลือก **Create Document** > **Automation**
-3.  Copy เนื้อหาจากไฟล์ `aws/ssm-runbook.json` ไปวางในโหมด JSON
-4.  รัน Document นี้ได้ทุกเมื่อที่ต้องการสั่ง Start หรือ Stop ทันที
+1.  ไปที่ Repository ของคุณใน GitHub
+2.  เลือก **Settings** > **Secrets and variables** > **Actions**
+3.  กด **New repository secret** และเพิ่มค่าดังนี้:
+    - `AWS_ACCESS_KEY_ID`: (จากข้อ 1)
+    - `AWS_SECRET_ACCESS_KEY`: (จากข้อ 1)
+    - `RDS_INSTANCE_ID`: ชื่อ DB Instance ของคุณ (เช่น `my-dev-db`)
 
 ---
 
-## การจัดการกรณีพิเศษ (Manual Override)
+## ขั้นตอนที่ 3: ตรวจสอบการทำงาน
 
-หากทีมต้องทำงานล่วงเวลา (OT) และไม่อยากให้เครื่องปิดเองตอน 18:00น.:
+ระบบจะทำงานอัตโนมัติตามกำหนดเวลา (09:00น. และ 18:00น. วันจันทร์-ศุกร์) แต่คุณสามารถสั่งรันเองได้ทันที:
 
-1.  ไปที่ **Lambda** > `rds-auto-scheduler` > **Configuration** > **Environment variables**
-2.  แก้ไข `MANUAL_OVERRIDE` เป็น `true`
-3.  เมื่อทำงานเสร็จแล้ว อย่าลืมเปลี่ยนกลับเป็น `false` เพื่อเริ่มระบบประหยัดเงินอีกครั้ง
+1.  ไปที่แถบ **Actions** ใน GitHub
+2.  เลือก Workflow ชื่อ **RDS Auto Start-Stop**
+3.  กด **Run workflow**
+4.  เลือกคำสั่งที่ต้องการ (**START** หรือ **STOP**) แล้วกด **Run workflow**
 
 ---
 
@@ -82,3 +57,4 @@ cd rds-cost-optimizer
 - **ค่าใช้จ่ายเดิม**: ~$18.00 ต่อเดือน
 - **ค่าใช้จ่ายใหม่**: ~$5.85 ต่อเดือน
 - **ประหยัดเงินได้**: **~67%** หรือมากกว่า 400 บาทต่อเดือนต่อหนึ่งฐานข้อมูล!
+- **ค่าบริการ GitHub Actions**: **ฟรี (Free Tier)** สำหรับโปรเจกต์ทั่วไป

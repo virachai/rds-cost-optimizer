@@ -1,24 +1,22 @@
 # RDS Cost Optimizer (rds-auto-start-stop)
 
-A production-ready AWS automation system to automatically start and stop Amazon RDS `db.t4g.micro` instances in `ap-southeast-1` (Singapore) to optimize costs for Dev/Test environments.
+A zero-infrastructure AWS automation system to automatically start and stop Amazon RDS `db.t4g.micro` instances in `ap-southeast-1` (Singapore) using **GitHub Actions**.
 
 ## Features
 
+- **Zero Infrastructure:** No Lambda or Terraform required. Runs directly from GitHub.
 - **Automated Scheduling:** Starts at 09:00 SGT and stops at 18:00 SGT (Mon–Fri).
-- **Cost Efficiency:** Reduces compute costs by ~64%.
-- **Manual Override:** Environment variable to temporarily disable automation.
-- **Slack Notifications:** Optional real-time alerts on instance state changes.
-- **Infrastructure as Code:** Fully managed via Terraform.
-- **Least Privilege:** Secure IAM roles restricted to specific RDS resources.
+- **Manual Control:** Trigger start/stop anytime via GitHub Actions `workflow_dispatch`.
+- **Cost Efficiency:** Reduces compute costs by ~67%.
+- **Secure:** Uses GitHub Secrets to store AWS credentials and Instance IDs.
 
 ## Architecture
 
-The system uses a serverless architecture:
+The system uses a simple, modern approach:
 
-- **EventBridge Rules:** Trigger the scheduler.
-- **AWS Lambda:** Executes start/stop logic via Boto3.
-- **IAM:** Ensures secure, minimal permissions.
-- **CloudWatch Logs:** Provides full auditability.
+- **GitHub Actions:** Acts as both the scheduler and the execution engine.
+- **AWS CLI:** Commands are issued directly to the AWS API.
+- **GitHub Secrets:** Securely stores sensitive configuration.
 
 ## Cost Estimation (Singapore)
 
@@ -32,14 +30,12 @@ _Note: Storage/EBS costs are additional and persist while the instance is stoppe
 ## Project Structure
 
 ```text
-├── docs/               # RFC and documentation
-├── src/                # Lambda source code
-│   └── lambda_function.py
-├── terraform/          # Infrastructure as Code
-│   ├── main.tf
-│   ├── variables.tf
-│   └── outputs.tf
-└── DEPLOYMENT.md       # Step-by-step setup guide
+├── .github/workflows/  # GitHub Action logic
+│   └── rds-scheduler.yml
+├── docs/               # RFC and architecture
+├── aws/                # SSM Runbooks
+├── HOW_TO.md           # Step-by-step guide (Thai)
+└── DEPLOYMENT.md       # Step-by-step guide (English)
 ```
 
 ## License
