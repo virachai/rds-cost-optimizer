@@ -47,10 +47,22 @@ jobs:
           ACTION=${{ steps.get_action.outputs.action }}
           INSTANCE_ID=${{ secrets.RDS_INSTANCE_ID }}
 
-          echo "Performing $ACTION on $INSTANCE_ID"
+          echo "Checking status for $INSTANCE_ID..."
+          STATUS=$(aws rds describe-db-instances --db-instance-identifier $INSTANCE_ID --query "DBInstances[0].DBInstanceStatus" --output text)
+          echo "Current status: $STATUS"
 
           if [ "$ACTION" == "START" ]; then
-            aws rds start-db-instance --db-instance-identifier $INSTANCE_ID
+            if [ "$STATUS" == "stopped" ]; then
+              echo "Starting RDS instance..."
+              aws rds start-db-instance --db-instance-identifier $INSTANCE_ID
+            else
+              echo "Instance is already $STATUS. No action taken."
+            fi
           elif [ "$ACTION" == "STOP" ]; then
-            aws rds stop-db-instance --db-instance-identifier $INSTANCE_ID
+            if [ "$STATUS" == "available" ]; then
+              echo "Stopping RDS instance..."
+              aws rds stop-db-instance --db-instance-identifier $INSTANCE_ID
+            else
+              echo "Instance is $STATUS (not available). No action taken."
+            fi
           fi

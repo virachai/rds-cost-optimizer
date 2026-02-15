@@ -2,26 +2,20 @@
 
 Follow these steps to set up the RDS Auto Start-Stop scheduler using GitHub Actions.
 
-## Prerequisites
+## Security & IAM (Least Privilege)
 
-1. An existing **RDS instance** (`db.t4g.micro`) in `ap-southeast-1`.
-2. An **IAM User** with the following permissions:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Action": [
-           "rds:StartDBInstance",
-           "rds:StopDBInstance",
-           "rds:DescribeDBInstances"
-         ],
-         "Resource": "arn:aws:rds:ap-southeast-1:ACCOUNT_ID:db:YOUR_INSTANCE_ID"
-       }
-     ]
-   }
-   ```
+For security best practices, the IAM User used by GitHub Actions should have the minimal permissions required.
+
+A complete least-privilege policy is provided in [aws/iam-policy.json](aws/iam-policy.json).
+
+**Permissions Summary:**
+
+- `rds:StartDBInstance`
+- `rds:StopDBInstance`
+- `rds:DescribeDBInstances` (Used for status checks)
+
+**Resource Scoping:**
+Always replace `YOUR_ACCOUNT_ID` and `YOUR_INSTANCE_ID` in the policy with your actual AWS Account ID and RDS Instance Identifier to ensure the user can only affect that specific database.
 
 ## Deployment Steps
 

@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RDSStartStopAPILeastPrivilege",
+      "Effect": "Allow",
+      "Action": [
+        "rds:StartDBInstance",
+        "rds:StopDBInstance",
+        "rds:DescribeDBInstances"
+      ],
+      "Resource": "arn:aws:rds:ap-southeast-1:YOUR_ACCOUNT_ID:db:YOUR_INSTANCE_ID"
+    }
+  ]
+}

@@ -7,23 +7,10 @@
 ## ขั้นตอนที่ 1: เตรียมความพร้อม (Prerequisites)
 
 1.  **สิทธิ์ AWS**: สร้าง IAM User และขอ **Access Key ID** และ **Secret Access Key**
-2.  **นโยบาย (IAM Policy)**: ให้สิทธิ์ User ดังนี้:
-    ```json
-    {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": [
-            "rds:StartDBInstance",
-            "rds:StopDBInstance",
-            "rds:DescribeDBInstances"
-          ],
-          "Resource": "arn:aws:rds:ap-southeast-1:เลขบัญชี:db:ชื่อ-db-ของคุณ"
-        }
-      ]
-    }
-    ```
+2.  **นโยบายความปลอดภัยสูงสุด (Least Privilege)**:
+    - ใช้ไฟล์ [aws/iam-policy.json](aws/iam-policy.json) เป็นต้นแบบ
+    - สิทธิ์นี้จะอนุญาตให้ **Start/Stop** เฉพาะเครื่องที่กำหนดเท่านั้น (ไม่ได้ให้สิทธิ์จัดการทั้งบัญชี)
+    - อย่าลืมเปลี่ยน `YOUR_ACCOUNT_ID` และ `YOUR_INSTANCE_ID` เป็นค่าของคุณจริงๆ
 3.  **มี RDS Instance**: ตรวจสอบว่ามีฐานข้อมูล `db.t4g.micro` รันอยู่ใน `ap-southeast-1`
 
 ---
